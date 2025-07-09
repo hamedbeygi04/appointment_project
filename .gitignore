@@ -1,0 +1,37 @@
+# virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# pyc files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# VSCode / PyCharm stuff
+.idea/
+.vscode/
+
+# OS garbage
+.DS_Store
+Thumbs.db
+
+# Django stuff
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+
+# Migrations (optional)
+*/migrations/__pycache__/
+*/migrations/*.pyc
+*/migrations/*.pyo
+
+# Static/media (optional if generated)
+staticfiles/
+media/
