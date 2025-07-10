@@ -19,9 +19,22 @@ from django.urls import path, include
 
 from appointments.views import LogoutView
 
+from django.views.generic import TemplateView
+from django.conf import settings
+from django.conf.urls.static import static
+from django.views.static import serve
+import os
+
+BASE_DIR = settings.BASE_DIR
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('appointments.urls')),
 
     path('api/logout/', LogoutView.as_view(), name='logout'),
+
+    path('frontend/', serve, {
+        'document_root': os.path.join(BASE_DIR, 'static_frontend'),
+        'path': 'index.html'
+        }),
 ]

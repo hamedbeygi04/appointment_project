@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 
 class Appointment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments', null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments')
     full_name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=15)
     date = models.DateField()
