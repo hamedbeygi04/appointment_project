@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <title>رزرو وقت ملاقات</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+
     <style>
         body {
             font-family: Tahoma, sans-serif;
@@ -45,13 +52,38 @@
             font-size: 0.9rem;
             background-color: #eee;
         }
+        .login-box {
+            border: 1px dashed #ccc;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <h2 class="section-title">ثبت‌ نام کاربر جدید</h2>
+        <div class="login-box">
+            <label>نام کاربری جدید:</label>
+            <input type="text" id="signup_username">
+            <label>رمز عبور:</label>
+            <input type="password" id="signup_password">
+            <button onclick="registerUser()">ثبت‌نام</button>
+        </div>
+
+        <h2 class="section-title">ورود با JWT</h2>
+        <div class="login-box">
+            <label>نام کاربری:</label>
+            <input type="text" id="username">
+            <label>رمز عبور:</label>
+            <input type="password" id="password">
+            <button onclick="loginUser()">دریافت توکن</button>
+        </div>
+
         <h2 class="section-title">ثبت نوبت ملاقات</h2>
         <label>توکن JWT:</label>
-        <input type="text" id="token" class="token-input" placeholder="توکن خود را وارد کنید">
+        <input type="text" id="token" class="token-input" placeholder="توکن را وارد کنید یا از بخش بالا دریافت کن">
 
         <label>نام کامل:</label>
         <input type="text" id="full_name">
@@ -60,7 +92,7 @@
         <input type="text" id="phone_number">
 
         <label>تاریخ ملاقات:</label>
-        <input type="date" id="date">
+        <input type="text" id="date" class="datepicker" placeholder="تاریخ شمسی را انتخاب کنید">
 
         <label>ساعت ملاقات:</label>
         <input type="time" id="time">
@@ -79,8 +111,72 @@
     <script>
         const apiBase = '/api/appointments/';
 
+        $(document).ready(function () {
+            $('#date').persianDatepicker({
+                format: 'YYYY-MM-DD',
+                initialValue: false,
+                autoClose: true,
+                minDate: new persianDate().startOf('day'),
+            });
+        });
+
+        function registerUser() {
+            fetch('/api/register/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: document.getElementById('signup_username').value,
+                    password: document.getElementById('signup_password').value
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else {
+                    alert(data.error || "خطا در ثبت‌نام");
+                }
+            })
+            .catch(err => alert("خطا در ارتباط با سرور هنگام ثبت‌نام"));
+        }
+
+        function loginUser() {
+            fetch('/api/token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.access) {
+                    document.getElementById('token').value = data.access;
+                    alert("ورود موفق! توکن دریافت شد ✅");
+                } else {
+                    alert("نام کاربری یا رمز عبور اشتباه است ❌");
+                }
+            })
+            .catch(err => alert("خطا در ورود یا اتصال به سرور"));
+        }
+
         function submitAppointment() {
             const token = document.getElementById('token').value;
+            const selectedDate = document.getElementById('date').value;
+            const selectedTime = document.getElementById('time').value;
+            const now = new Date();
+
+            const selectedDateTime = new Date(`${selectedDate}T${selectedTime}`);
+            if (selectedDateTime < now) {
+                alert("نمی‌توان نوبتی در گذشته ثبت کرد ⛔");
+                return;
+            }
+
             fetch(apiBase, {
                 method: 'POST',
                 headers: {
@@ -90,8 +186,8 @@
                 body: JSON.stringify({
                     full_name: document.getElementById('full_name').value,
                     phone_number: document.getElementById('phone_number').value,
-                    date: document.getElementById('date').value,
-                    time: document.getElementById('time').value,
+                    date: selectedDate,
+                    time: selectedTime,
                     notes: document.getElementById('notes').value
                 })
             })
