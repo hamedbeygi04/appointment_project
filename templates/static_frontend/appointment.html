@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>ثبت نوبت</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+</head>
+<body class="bg-light py-5">
+
+  <div class="container" style="max-width: 600px;">
+    <h3 class="mb-4 text-center">فرم ثبت نوبت</h3>
+
+    <input type="text" id="full_name" class="form-control mb-2" placeholder="نام کامل">
+    <input type="text" id="phone_number" class="form-control mb-2" placeholder="شماره تلفن">
+    <input type="text" id="date" class="form-control mb-2" placeholder="تاریخ شمسی">
+    <input type="time" id="time" class="form-control mb-2">
+    <textarea id="notes" class="form-control mb-3" placeholder="توضیحات (اختیاری)"></textarea>
+
+    <button class="btn btn-dark w-100 mb-3" onclick="submitAppointment()">ثبت نوبت</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary w-100">نمایش نوبت‌های من</a>
+  </div>
+
+  <script>
+    const jwtToken = localStorage.getItem('jwtToken');
+
+    if (!jwtToken) {
+      alert("ابتدا وارد شوید");
+      window.location.href = "{% url 'login' %}";
+    }
+
+    $(document).ready(function () {
+      $('#date').persianDatepicker({
+        format: 'YYYY-MM-DD',
+        autoClose: true,
+        initialValue: false,
+        minDate: new persianDate().startOf('day')
+      });
+    });
+
+    function submitAppointment() {
+      const date = document.getElementById('date').value;
+      const time = document.getElementById('time').value;
+      const now = new Date();
+      const dateTime = new Date(`${date}T${time}`);
+
+      if (dateTime < now) {
+        alert("نمی‌توان نوبتی در گذشته ثبت کرد ⛔");
+        return;
+      }
+
+      fetch('/api/appointments/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`
+        },
+        body: JSON.stringify({
+          full_name: document.getElementById('full_name').value,
+          phone_number: document.getElementById('phone_number').value,
+          date: date,
+          time: time,
+          notes: document.getElementById('notes').value
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("نوبت با موفقیت ثبت شد ✅");
+        document.querySelectorAll('input, textarea').forEach(el => el.value = '');
+      })
+      .catch(() => alert("خطا در ثبت نوبت"));
+    }
+  </script>
+
+</body>
+</html>

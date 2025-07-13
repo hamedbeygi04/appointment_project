@@ -11,6 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAdminUser
 
 class AppointmentListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Appointment.objects.all()
     serializer_class = AppointmentSerializers
     permission_classes = [IsAuthenticated]
 
@@ -31,6 +32,9 @@ class AppointmentRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
     queryset = Appointment.objects.all()
     serializer_class = AppointmentSerializers
     permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        return Appointment.objects.filter(user=self.request.user)
 
 
 class RegisterView(APIView):

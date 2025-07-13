@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>داشبورد من</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light py-5">
+  <div class="container" style="max-width: 700px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="mb-0">نوبت‌های من</h4>
+      <button class="btn btn-outline-danger btn-sm" onclick="logout()">خروج</button>
+    </div>
+    <ul id="appointmentsList" class="list-group"></ul>
+    <div id="emptyMessage" class="text-center text-muted mt-4">نوبتی برای نمایش وجود ندارد.</div>
+  </div>
+
+  <!-- Modal Edit -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">ویرایش نوبت</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="edit_full_name" class="form-control mb-2" placeholder="نام کامل">
+          <input type="text" id="edit_date" class="form-control mb-2" placeholder="تاریخ">
+          <input type="time" id="edit_time" class="form-control mb-2">
+          <textarea id="edit_notes" class="form-control" rows="3" placeholder="توضیحات"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="saveEdit()">ذخیره تغییرات</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const jwtToken = localStorage.getItem('jwtToken');
+    if (!jwtToken) {
+      alert("لطفاً ابتدا وارد شوید");
+      window.location.href = "login.html";
+    }
+
+    let appointments = [];
+    let editingId = null;
+
+    fetch('/api/appointments/', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${jwtToken}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+      appointments = data;
+      const list = document.getElementById("appointmentsList");
+      const empty = document.getElementById("emptyMessage");
+      if (data.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      data.forEach(app => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <span>${app.full_name} | ${app.date} - ${app.time}</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="editAppointment(${app.id})">ویرایش</button>
+          </div>
+        `;
+        list.appendChild(li);
+      });
+    })
+    .catch(() => alert("خطا در دریافت نوبت‌ها"));
+
+    function editAppointment(id) {
+      const appt = appointments.find(item => item.id === id);
+      editingId = id;
+      document.getElementById('edit_full_name').value = appt.full_name;
+      document.getElementById('edit_date').value = appt.date;
+      document.getElementById('edit_time').value = appt.time;
+      document.getElementById('edit_notes').value = appt.notes;
+
+      new bootstrap.Modal(document.getElementById('editModal')).show();
+    }
+
+    function saveEdit() {
+      fetch(`/api/appointments/${editingId}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`
+        },
+        body: JSON.stringify({
+          full_name: document.getElementById('edit_full_name').value,
+          date: document.getElementById('edit_date').value,
+          time: document.getElementById('edit_time').value,
+          notes: document.getElementById('edit_notes').value
+        })
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("نوبت با موفقیت ویرایش شد ✅");
+        location.reload();
+      })
+      .catch(() => alert("خطا در ویرایش نوبت"));
+    }
+
+    function logout() {
+      localStorage.removeItem('jwtToken');
+      window.location.href = "{% url 'login' %}";
+    }
+  </script>
+</body>
+</html>

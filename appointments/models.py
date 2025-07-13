@@ -2,12 +2,14 @@ from django.db import models
 
 from django.contrib.auth.models import User
 
+import django_jalali.db.models as jmodels
+
 
 class Appointment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments')
     full_name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=15)
-    date = models.DateField()
+    date = jmodels.jDateField(verbose_name="تاریخ")
     time = models.TimeField()
     status = models.CharField(max_length=10, choices=[
         ('pending', 'در انتظار'),

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>ورود</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+</head>
+<body class="bg-light py-5">
+
+  <div class="container">
+    <div class="card p-4 mx-auto shadow-sm" style="max-width: 400px;">
+      <h4 class="mb-3 text-center">ورود به حساب کاربری</h4>
+
+      <input type="text" id="username" class="form-control mb-2" placeholder="نام کاربری">
+      <input type="password" id="password" class="form-control mb-3" placeholder="رمز عبور">
+
+      <button class="btn btn-primary w-100" onclick="loginUser()">ورود</button>
+      <a href="{% url 'signup' %}" class="d-block text-center mt-3 text-decoration-none">حساب ندارید؟ ثبت‌نام کنید</a>
+    </div>
+  </div>
+
+  <script>
+    function loginUser() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!username || !password) {
+        alert("لطفاً نام کاربری و رمز عبور را وارد کنید");
+        return;
+      }
+
+      fetch('/api/token/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.access) {
+          localStorage.setItem('jwtToken', data.access);
+          alert("ورود موفق! 🎉");
+          window.location.href = '{% url 'appointment' %}';
+        } else {
+          alert("نام کاربری یا رمز اشتباه است ❌");
+        }
+      })
+      .catch(() => alert("خطا در اتصال به سرور"));
+    }
+  </script>
+
+</body>
+</html>

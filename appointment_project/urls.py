@@ -33,8 +33,12 @@ urlpatterns = [
 
     path('api/logout/', LogoutView.as_view(), name='logout'),
 
-    path('frontend/', serve, {
-        'document_root': os.path.join(BASE_DIR, 'static_frontend'),
-        'path': 'index.html'
-        }),
+    path('', TemplateView.as_view(template_name="static_frontend/index.html"), name='index'),
+    path('signup/', TemplateView.as_view(template_name='static_frontend/signup.html'), name='signup'),
+    path('login/', TemplateView.as_view(template_name='static_frontend/login.html'), name='login'),
+    path('appointment/', TemplateView.as_view(template_name='static_frontend/appointment.html'), name='appointment'),
+    path('dashboard/', TemplateView.as_view(template_name='static_frontend/dashboard.html'), name='dashboard'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
