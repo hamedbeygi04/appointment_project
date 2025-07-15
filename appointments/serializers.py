@@ -1,9 +1,6 @@
 from rest_framework import serializers
 from .models import Appointment
-
-import jdatetime
-from datetime import datetime, date, time as dtime
-
+from datetime import datetime
 
 class AppointmentSerializers(serializers.ModelSerializer):
     class Meta:
@@ -12,22 +9,14 @@ class AppointmentSerializers(serializers.ModelSerializer):
         read_only_fields = ['user']
 
     def validate(self, data):
-        date_str = self.initial_data.get("date")
-        try:
-            jdate = jdatetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-            gdate = jdate.togregorian()
-            data['date'] = gdate
-        except:
-            raise serializers.ValidationError({'date': 'تاریخ نامعتبر است. فرمت باید YYYY-MM-DD باشد.'})
-
-        appointment_datetime = datetime.combine(data["date"], data["time"])
-        if appointment_datetime < datetime.now():
-            raise serializers.ValidationError("نمی‌توان نوبتی در زمان گذشته ثبت کرد.")
+        date = data.get("date")
+        time = data.get("time")
+        if date and time:
+            appointment_datetime = datetime.combine(date, time)
+            if appointment_datetime < datetime.now():
+                raise serializers.ValidationError("نمی‌توان نوبتی در زمان گذشته ثبت کرد.")
         return data
 
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        gdate = instance.date
-        jdate = jdatetime.date.fromgregorian(date=gdate)
-        rep['date'] = jdate.strftime('%Y-%m-%d')
-        return rep
+    def update(self, instance, validated_data):
+        validated_data['user'] =instance.user
+        return super().update(instance, validated_data)

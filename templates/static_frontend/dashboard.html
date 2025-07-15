@@ -2,19 +2,37 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>داشبورد من</title>
+  <title>داشبورد نوبت‌ها</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #e0eafc, #cfdef3);
+      min-height: 100vh;
+    }
+    .card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .btn-rounded {
+      border-radius: 12px;
+    }
+  </style>
 </head>
-<body class="bg-light py-5">
-  <div class="container" style="max-width: 700px;">
+<body class="py-5">
+
+  <div class="container" style="max-width: 800px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="mb-0">نوبت‌های من</h4>
-      <button class="btn btn-outline-danger btn-sm" onclick="logout()">خروج</button>
+      <h4 class="mb-0">📋 نوبت‌های من</h4>
+      <button class="btn btn-outline-danger btn-sm btn-rounded" onclick="logout()">خروج</button>
     </div>
-    <ul id="appointmentsList" class="list-group"></ul>
-    <div id="emptyMessage" class="text-center text-muted mt-4">نوبتی برای نمایش وجود ندارد.</div>
+
+    <ul id="appointmentsList" class="list-group mb-4"></ul>
+    <div id="emptyMessage" class="text-center text-muted">نوبتی ثبت نشده است.</div>
   </div>
 
   <!-- Modal Edit -->
@@ -22,97 +40,148 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">ویرایش نوبت</h5>
+          <h5 class="modal-title">✏️ ویرایش نوبت</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <input type="text" id="edit_full_name" class="form-control mb-2" placeholder="نام کامل">
-          <input type="text" id="edit_date" class="form-control mb-2" placeholder="تاریخ">
+          <input type="text" id="edit_phone_number" class="form-control mb-2" placeholder="شماره تماس">
+          <input type="date" id="edit_date" class="form-control mb-2">
           <input type="time" id="edit_time" class="form-control mb-2">
           <textarea id="edit_notes" class="form-control" rows="3" placeholder="توضیحات"></textarea>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-primary" onclick="saveEdit()">ذخیره تغییرات</button>
+          <button class="btn btn-danger btn-rounded me-auto" onclick="deleteAppointment()">🗑️ حذف</button>
+          <button class="btn btn-primary btn-rounded" onclick="saveEdit()">ذخیره تغییرات</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const jwtToken = localStorage.getItem('jwtToken');
-    if (!jwtToken) {
-      alert("لطفاً ابتدا وارد شوید");
-      window.location.href = "login.html";
-    }
-
+    const jwtToken = localStorage.getItem("jwtToken");
     let appointments = [];
     let editingId = null;
 
-    fetch('/api/appointments/', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${jwtToken}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-      appointments = data;
-      const list = document.getElementById("appointmentsList");
-      const empty = document.getElementById("emptyMessage");
-      if (data.length === 0) {
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-      data.forEach(app => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item';
-        li.innerHTML = `
-          <div class="d-flex justify-content-between align-items-center">
-            <span>${app.full_name} | ${app.date} - ${app.time}</span>
-            <button class="btn btn-sm btn-outline-secondary" onclick="editAppointment(${app.id})">ویرایش</button>
-          </div>
-        `;
-        list.appendChild(li);
+    if (!jwtToken) {
+      alert("ابتدا وارد شوید");
+      window.location.href = "{% url 'login' %}";
+    }
+
+    function logout() {
+      localStorage.removeItem("jwtToken");
+      window.location.href = "{% url 'login' %}";
+    }
+
+    function loadAppointments() {
+      fetch('/api/appointments/', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${jwtToken}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        appointments = data;
+        const list = document.getElementById("appointmentsList");
+        const empty = document.getElementById("emptyMessage");
+        list.innerHTML = "";
+
+        if (data.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        empty.style.display = 'none';
+        data.forEach(app => {
+          const li = document.createElement("li");
+          li.className = "list-group-item d-flex justify-content-between align-items-center";
+          li.innerHTML = `
+            <div>
+              <strong>${app.full_name}</strong> | ${app.date} - ${app.time}<br>
+              📞 ${app.phone_number}
+            </div>
+            <button class="btn btn-sm btn-outline-secondary btn-rounded" onclick="editAppointment(${app.id})">ویرایش</button>
+          `;
+          list.appendChild(li);
+        });
       });
-    })
-    .catch(() => alert("خطا در دریافت نوبت‌ها"));
+    }
 
     function editAppointment(id) {
       const appt = appointments.find(item => item.id === id);
+      if (!appt) {
+        alert("نوبت پیدا نشد!");
+        return;
+      }
       editingId = id;
-      document.getElementById('edit_full_name').value = appt.full_name;
-      document.getElementById('edit_date').value = appt.date;
-      document.getElementById('edit_time').value = appt.time;
-      document.getElementById('edit_notes').value = appt.notes;
 
-      new bootstrap.Modal(document.getElementById('editModal')).show();
+      document.getElementById("edit_full_name").value = appt.full_name || "";
+      document.getElementById("edit_phone_number").value = appt.phone_number || "";
+      document.getElementById("edit_date").value = appt.date || "";
+      document.getElementById("edit_time").value = appt.time || "";
+      document.getElementById("edit_notes").value = appt.notes || "";
+
+      console.log("ویرایش نوبت با ID:", editingId);
+      new bootstrap.Modal(document.getElementById("editModal")).show();
     }
 
     function saveEdit() {
+      if (!editingId) {
+        alert("نوبت انتخاب نشده است");
+        return;
+      }
+
+      const updatedData = {
+        full_name: document.getElementById("edit_full_name").value,
+        phone_number: document.getElementById("edit_phone_number").value,
+        date: document.getElementById("edit_date").value,
+        time: document.getElementById("edit_time").value,
+        notes: document.getElementById("edit_notes").value
+      };
+
       fetch(`/api/appointments/${editingId}/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${jwtToken}`
         },
-        body: JSON.stringify({
-          full_name: document.getElementById('edit_full_name').value,
-          date: document.getElementById('edit_date').value,
-          time: document.getElementById('edit_time').value,
-          notes: document.getElementById('edit_notes').value
-        })
+        body: JSON.stringify(updatedData)
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("ویرایش انجام نشد");
+        return res.json();
+      })
       .then(() => {
         alert("نوبت با موفقیت ویرایش شد ✅");
-        location.reload();
+        bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+        loadAppointments();
       })
-      .catch(() => alert("خطا در ویرایش نوبت"));
+      .catch(() => alert("خطا در ویرایش نوبت ❌"));
     }
 
-    function logout() {
-      localStorage.removeItem('jwtToken');
-      window.location.href = "{% url 'login' %}";
+    function deleteAppointment() {
+      if (!editingId) {
+        alert("نوبت انتخاب نشده است");
+        return;
+      }
+
+      if (!confirm("آیا مطمئن هستید که می‌خواهید این نوبت را حذف کنید؟")) return;
+
+      fetch(`/api/appointments/${editingId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${jwtToken}`
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("حذف انجام نشد");
+        alert("نوبت با موفقیت حذف شد ✅");
+        bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+        loadAppointments();
+      })
+      .catch(() => alert("خطا در حذف نوبت ❌"));
     }
+
+    loadAppointments();
   </script>
 </body>
 </html>

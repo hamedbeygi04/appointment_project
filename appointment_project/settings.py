@@ -153,8 +153,3 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
-
-
-JALALI_DATE_DEFAULTS = {
-    'LIST_DISPLAY_AUTO_CONVERT': True,
-}

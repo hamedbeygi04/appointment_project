@@ -4,50 +4,65 @@
   <meta charset="UTF-8">
   <title>ورود</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #fdfbfb, #ebedee);
+      min-height: 100vh;
+    }
+    .card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .btn-rounded {
+      border-radius: 12px;
+    }
+    .form-control {
+      border-radius: 12px;
+    }
+  </style>
 </head>
-<body class="bg-light py-5">
+<body class="d-flex align-items-center justify-content-center py-5">
 
-  <div class="container">
-    <div class="card p-4 mx-auto shadow-sm" style="max-width: 400px;">
-      <h4 class="mb-3 text-center">ورود به حساب کاربری</h4>
+  <div class="card p-4 w-100" style="max-width: 400px;">
+    <h4 class="mb-4 text-center">🔐 ورود</h4>
 
-      <input type="text" id="username" class="form-control mb-2" placeholder="نام کاربری">
-      <input type="password" id="password" class="form-control mb-3" placeholder="رمز عبور">
+    <input type="text" id="username" class="form-control mb-3" placeholder="نام کاربری">
+    <input type="password" id="password" class="form-control mb-3" placeholder="رمز عبور">
 
-      <button class="btn btn-primary w-100" onclick="loginUser()">ورود</button>
-      <a href="{% url 'signup' %}" class="d-block text-center mt-3 text-decoration-none">حساب ندارید؟ ثبت‌نام کنید</a>
+    <button class="btn btn-dark w-100 btn-rounded mb-2" onclick="login()">ورود</button>
+    <div class="text-center">
+      <a href="#" class="text-decoration-none text-primary" onclick="forgotPassword()">رمز عبور را فراموش کرده‌اید؟</a>
     </div>
   </div>
 
   <script>
-    function loginUser() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      if (!username || !password) {
-        alert("لطفاً نام کاربری و رمز عبور را وارد کنید");
-        return;
-      }
+    function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
       fetch('/api/token/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.access) {
-          localStorage.setItem('jwtToken', data.access);
-          alert("ورود موفق! 🎉");
-          window.location.href = '{% url 'appointment' %}';
-        } else {
-          alert("نام کاربری یا رمز اشتباه است ❌");
-        }
+      .then(res => {
+        if (!res.ok) throw new Error("ورود ناموفق بود");
+        return res.json();
       })
-      .catch(() => alert("خطا در اتصال به سرور"));
+      .then(data => {
+        localStorage.setItem("jwtToken", data.access);
+        window.location.href = "{% url 'appointment' %}";
+      })
+      .catch(() => alert("نام کاربری یا رمز عبور اشتباه است ❌"));
+    }
+
+    function forgotPassword() {
+      alert("برای بازیابی رمز عبور لطفاً با پشتیبانی تماس بگیرید یا ایمیل ثبت‌شده خود را بررسی کنید. (ویژگی کامل بعداً پیاده‌سازی می‌شود)");
     }
   </script>
-
 </body>
 </html>
