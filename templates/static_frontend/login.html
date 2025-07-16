@@ -61,7 +61,7 @@
     }
 
     function forgotPassword() {
-      alert("برای بازیابی رمز عبور لطفاً با پشتیبانی تماس بگیرید یا ایمیل ثبت‌شده خود را بررسی کنید. (ویژگی کامل بعداً پیاده‌سازی می‌شود)");
+      window.location.href = "{% url 'forgot-password' %}";
     }
   </script>
 </body>

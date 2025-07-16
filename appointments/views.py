@@ -1,7 +1,11 @@
 from rest_framework import generics
 from django.contrib.auth.models import User
+from rest_framework.exceptions import ValidationError
+
 from .models import Appointment
 from .serializers import AppointmentSerializers
+from datetime import datetime, timedelta, time
+from django.utils.timezone import make_aware
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,6 +13,14 @@ from rest_framework.permissions import IsAuthenticated, BasePermission, AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAdminUser
+
+from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.urls import reverse
+from django.conf import settings
 
 class AppointmentListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AppointmentSerializers
@@ -20,6 +32,27 @@ class AppointmentListCreateAPIView(generics.ListCreateAPIView):
         return Appointment.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
+        date = self.request.data.get("date")
+        time = self.request.data.get("time")
+
+        if not date or not time:
+            raise ValidationError("تاریخ و ساعت الزامی هستند")
+
+        selected_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        selected_dt = make_aware(selected_dt)
+
+        start_range = selected_dt
+        end_range = selected_dt + timedelta(hours=2)
+
+        conflicts = Appointment.objects.filter(
+            date=date,
+            time__gte=start_range.time(),
+            time__lt=end_range.time()
+        )
+
+        if conflicts.exists():
+            raise ValidationError("این بازه‌ی زمانی قبلاً رزرو شده است ❌")
+
         serializer.save(user=self.request.user)
 
 
@@ -36,6 +69,32 @@ class AppointmentRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
         if user.is_staff:
             return Appointment.objects.all()
         return Appointment.objects.filter(user=user)
+
+    def perform_update(self, serializer):
+        date = self.request.data.get("date")
+        time = self.request.data.get("time")
+
+        if not date or not time:
+            raise ValidationError("تاریخ و ساعت الزامی هستند")
+
+        selected_dt = make_aware(datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M"))
+
+        start_range = selected_dt
+        end_range = selected_dt + timedelta(hours=2)
+
+        current_instance = self.get_object()
+
+        conflicts = Appointment.objects.filter(
+            date=date,
+            time__gte=start_range.time(),
+            time__lt=end_range.time()
+        ).exclude(id=current_instance.id)
+
+        if conflicts.exists():
+            raise ValidationError("در این بازه زمانی نوبت دیگری وجود دارد ❌")
+
+        serializer.save()
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -65,3 +124,67 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetRequestView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        username = request.data.get('username')
+
+        try:
+            user = User.objects.get(username=username, email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'کاربر یافت نشد یا اطلاعات نادرست است'}, status=404)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+
+        send_mail(
+            subject='بازیابی رمز عبور',
+            message=f'برای تغییر رمز عبور روی لینک زیر کلیک کنید:\n{reset_link}',
+            from_email=None,
+            recipient_list=[email],
+        )
+        return Response({'message': 'لینک بازیابی ارسال شد ✅'})
+
+
+class PasswordResetConfirmView(APIView):
+    def post(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+        except:
+            return Response({'error': 'لینک نامعتبر است'}, status=400)
+
+        if default_token_generator.check_token(user, token):
+            password = request.data.get('password')
+            user.set_password(password)
+            user.save()
+            return Response({'message': 'رمز جدید ثبت شد ✅'})
+        return Response({'error': 'توکن نامعتبر یا منقضی شده'}, status=400)
+
+
+class AvailableTimesView(APIView):
+    def get(self, request):
+        date_str = request.query_params.get("date")
+        if not date_str:
+            return Response({"error": "پارامتر تاریخ لازم است"}, status=400)
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"error": "فرمت تاریخ اشتباه است"}, status=400)
+
+        full_hours = [time(hour=h) for h in range(8, 23)]
+        reserved_hours = []
+
+        appointments = Appointment.objects.filter(date=date_obj)
+        for appt in appointments:
+            start_time = datetime.combine(date_obj, appt.time)
+            for i in range(0, 2):
+                reserved = (start_time + timedelta(hours=i)).time()
+                reserved_hours.append(reserved)
+
+        available = [h.strftime("%H:%M") for h in full_hours if h not in reserved_hours]
+        return Response({"available_times": available})

@@ -38,6 +38,8 @@ urlpatterns = [
     path('login/', TemplateView.as_view(template_name='static_frontend/login.html'), name='login'),
     path('appointment/', TemplateView.as_view(template_name='static_frontend/appointment.html'), name='appointment'),
     path('dashboard/', TemplateView.as_view(template_name='static_frontend/dashboard.html'), name='dashboard'),
+    path('forgot-password/', TemplateView.as_view(template_name='static_frontend/forgot-password.html'), name='forgot-password'),
+    path('reset-password/<uidb64>/<token>/', TemplateView.as_view(template_name='static_frontend/reset-password.html'), name='reset-password'),
 ]
 
 if settings.DEBUG:
