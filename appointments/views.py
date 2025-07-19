@@ -38,14 +38,17 @@ class AppointmentListCreateAPIView(generics.ListCreateAPIView):
         if not date or not time:
             raise ValidationError("تاریخ و ساعت الزامی هستند")
 
-        selected_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-        selected_dt = make_aware(selected_dt)
+        try:
+            selected_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+            selected_dt = make_aware(selected_dt)
+        except ValueError:
+            raise ValidationError("فرمت تاریخ یا ساعت نادرست است")
 
-        start_range = selected_dt
+        start_range = selected_dt - timedelta(hours=1)
         end_range = selected_dt + timedelta(hours=2)
 
         conflicts = Appointment.objects.filter(
-            date=date,
+            date=selected_dt.date(),
             time__gte=start_range.time(),
             time__lt=end_range.time()
         )
@@ -77,15 +80,18 @@ class AppointmentRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
         if not date or not time:
             raise ValidationError("تاریخ و ساعت الزامی هستند")
 
-        selected_dt = make_aware(datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M"))
+        try:
+            selected_dt = make_aware(datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M"))
+        except ValueError:
+            raise ValidationError("فرمت تاریخ یا ساعت نادرست است")
 
-        start_range = selected_dt
+        start_range = selected_dt - timedelta(hours=2)
         end_range = selected_dt + timedelta(hours=2)
 
         current_instance = self.get_object()
 
         conflicts = Appointment.objects.filter(
-            date=date,
+            date=selected_dt.date(),
             time__gte=start_range.time(),
             time__lt=end_range.time()
         ).exclude(id=current_instance.id)
@@ -167,24 +173,23 @@ class PasswordResetConfirmView(APIView):
 
 class AvailableTimesView(APIView):
     def get(self, request):
-        date_str = request.query_params.get("date")
+        date_str = request.GET.get("date")
         if not date_str:
-            return Response({"error": "پارامتر تاریخ لازم است"}, status=400)
+            return Response({"error": "تاریخ ارسال نشده"}, status=400)
 
-        try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return Response({"error": "فرمت تاریخ اشتباه است"}, status=400)
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
 
-        full_hours = [time(hour=h) for h in range(8, 23)]
-        reserved_hours = []
+        reserved_times = Appointment.objects.filter(date=date).values_list("time", flat=True)
+        all_times = [f"{h:02d}:00" for h in range(8, 23)]
 
-        appointments = Appointment.objects.filter(date=date_obj)
-        for appt in appointments:
-            start_time = datetime.combine(date_obj, appt.time)
-            for i in range(0, 2):
-                reserved = (start_time + timedelta(hours=i)).time()
-                reserved_hours.append(reserved)
+        available = []
+        for t in all_times:
+            t_dt = datetime.strptime(t, "%H:%M")
+            overlap = any(
+                abs((t_dt.hour - rt.hour)) < 2
+                for rt in reserved_times
+            )
+            if not overlap:
+                available.append(t)
 
-        available = [h.strftime("%H:%M") for h in full_hours if h not in reserved_hours]
-        return Response({"available_times": available})
+        return Response(available)

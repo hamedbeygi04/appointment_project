@@ -36,11 +36,9 @@
     <input type="text" id="full_name" class="form-control mb-3" placeholder="👤 نام کامل">
     <input type="text" id="phone_number" class="form-control mb-3" placeholder="📞 شماره تلفن">
     <input type="date" id="date" class="form-control mb-3">
-
     <select id="time" class="form-control mb-3">
-      <option value="">⏳ ابتدا تاریخ را انتخاب کنید</option>
+      <option disabled selected>⏰ انتخاب ساعت</option>
     </select>
-
     <textarea id="notes" class="form-control mb-4" rows="3" placeholder="📝 توضیحات (اختیاری)"></textarea>
 
     <button class="btn btn-dark w-100 mb-3" onclick="submitAppointment()">✅ ثبت نوبت</button>
@@ -57,28 +55,42 @@
 
     document.getElementById("date").addEventListener("change", function () {
       const selectedDate = this.value;
-      const timeSelect = document.getElementById("time");
-      timeSelect.innerHTML = '<option value="">در حال بارگذاری...</option>';
-
-      fetch(`/api/available-times/?date=${selectedDate}`)
-        .then((res) => res.json())
-        .then((data) => {
-          timeSelect.innerHTML = "";
-          if (data.available_times.length === 0) {
-            timeSelect.innerHTML = '<option value="">هیچ ساعتی آزاد نیست 😔</option>';
-          } else {
-            data.available_times.forEach((t) => {
-              const opt = document.createElement("option");
-              opt.value = t;
-              opt.innerText = t;
-              timeSelect.appendChild(opt);
-            });
-          }
-        })
-        .catch(() => {
-          timeSelect.innerHTML = '<option value="">خطا در بارگذاری 🛑</option>';
-        });
+      loadAvailableTimes(selectedDate);
     });
+
+    function loadAvailableTimes(selectedDate) {
+    fetch(`/api/available-times/?date=${selectedDate}`, {
+        headers: {
+            'Authorization': `Bearer ${jwtToken}`
+        }
+    })
+        .then(res => {
+            if (!res.ok) throw new Error("خطای دریافت داده از سرور");
+        return res.json();
+        })
+        .then(times => {
+            const timeSelect = document.getElementById("time");
+            timeSelect.innerHTML = "";
+
+            if (times.length === 0) {
+                const option = document.createElement("option");
+                option.text = "هیچ ساعتی در این روز آزاد نیست ⛔";
+                timeSelect.add(option);
+                return;
+            }
+
+            times.forEach(time => {
+            const option = document.createElement("option");
+            option.value = time;
+            option.text = `${time}`;
+            timeSelect.add(option);
+            });
+        })
+        .catch(err => {
+        console.error("🔥 خطا در دریافت ساعت‌های آزاد:", err);
+        alert("خطا در دریافت ساعت‌های آزاد");
+        });
+    }
 
     function submitAppointment() {
       const date = document.getElementById('date').value;
@@ -111,7 +123,10 @@
           notes: document.getElementById('notes').value
         })
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
       .then(data => {
         alert("نوبت با موفقیت ثبت شد ✅");
         document.querySelectorAll('input, textarea, select').forEach(el => el.value = '');
