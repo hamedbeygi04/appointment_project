@@ -49,8 +49,8 @@
     const jwtToken = localStorage.getItem('jwtToken');
 
     if (!jwtToken) {
-      alert("ابتدا وارد شوید");
-      window.location.href = "{% url 'login' %}";
+      alert("ابتدا ثبت نام کنید");
+      window.location.href = "{% url 'signup' %}";
     }
 
     document.getElementById("date").addEventListener("change", function () {
